@@ -8,10 +8,12 @@ const HOST = "localhost";
 server.use(express.urlencoded({ extended: true }));
 server.use(express.json());
 
+// Obtener Productos
 server.get('/api/productos', (req, res) => {
     res.status(200).send({ status: "success", payload: productos });
 });
 
+// Obtener Productos por ID
 server.get('/api/productos/:pid', (req, res) => {
     const { pid } = req.params;
     const producto = productos.find((producto) => producto.id === Number(pid));
@@ -23,6 +25,8 @@ server.get('/api/productos/:pid', (req, res) => {
     return res.status(200).send({ status: "success", payload: producto });
 });
 
+
+// Agregar Producto
 server.post('/api/productos', (req, res) => {
     const { title, description, code, price, status, stock, category, thumbnails } = req.body;
 
@@ -47,6 +51,7 @@ server.post('/api/productos', (req, res) => {
     return res.status(201).send({ status: "success", message: "El producto se ha creado", payload: newProduct });
 });
 
+// Actualizar Productos
 server.put('/api/productos/:pid', (req, res) => {
     const { pid } = req.params;
     const { title, description, code, price, status, stock, category, thumbnails } = req.body;
@@ -65,6 +70,7 @@ server.put('/api/productos/:pid', (req, res) => {
     return res.status(200).send({ status: "success", message: "El producto se ha modificado", payload: productos[indice] });
 });
 
+// Eliminar Productos
 server.delete('/api/productos/:pid', (req, res) => {
     const { pid } = req.params;
     const indice = productos.findIndex((producto) => producto.id === Number(pid));
