@@ -1,6 +1,6 @@
 import express from 'express';
 import { productos, generarId, agregarProducto, actualizarProducto, eliminarProducto } from './productos.js';
-import { carritos, crearCarrito, obtenerCarritoPorId, agregarProductoACarrito } from './carts.js';
+import { crearCarrito, obtenerCarritoPorId, agregarProductoACarrito } from './carts.js';
 
 const server = express();
 const PORT = 8080;

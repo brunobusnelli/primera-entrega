@@ -1,37 +1,29 @@
 import fs from 'fs';
 import path from 'path';
 
-const carritosPath = path.resolve('carrito.json');
+const __dirname = path.resolve();
+const filePath = path.join(__dirname, 'carritos.json');
 
-const readCarritosFromFile = () => {
-    try {
-        const data = fs.readFileSync(carritosPath, 'utf8');
-        return JSON.parse(data);
-    } catch (err) {
-        console.error('Error leyendo carritos:', err);
-        return [];
+let carritos = [];
+
+const loadCarritos = () => {
+    if (fs.existsSync(filePath)) {
+        const data = fs.readFileSync(filePath, 'utf-8');
+        carritos = JSON.parse(data);
     }
 };
 
-const writeCarritosToFile = (carritos) => {
-    try {
-        fs.writeFileSync(carritosPath, JSON.stringify(carritos, null, 2));
-    } catch (err) {
-        console.error('Error escribiendo carritos:', err);
-    }
+const saveCarritos = () => {
+    fs.writeFileSync(filePath, JSON.stringify(carritos, null, 2));
 };
-
-const carritos = readCarritosFromFile();
 
 const generarIdCarrito = () => {
     let mayorId = 0;
-
-    carritos.forEach((carrito) => {
+    carritos.forEach(carrito => {
         if (carrito.id > mayorId) {
             mayorId = carrito.id;
         }
     });
-
     return mayorId + 1;
 };
 
@@ -40,34 +32,34 @@ const crearCarrito = () => {
         id: generarIdCarrito(),
         products: []
     };
-
     carritos.push(nuevoCarrito);
-    writeCarritosToFile(carritos);
+    saveCarritos();
     return nuevoCarrito;
 };
 
-const obtenerCarritoPorId = (id) => {
-    return carritos.find(carrito => carrito.id === Number(id));
+const obtenerCarritoPorId = (cid) => {
+    const carrito = carritos.find(carrito => carrito.id === Number(cid));
+    return carrito || null;
 };
 
-const agregarProductoACarrito = (carritoId, productoId) => {
-    const carrito = obtenerCarritoPorId(carritoId);
-
+const agregarProductoACarrito = (cid, pid) => {
+    const carrito = carritos.find(carrito => carrito.id === Number(cid));
     if (!carrito) {
         return null;
     }
 
-    const productoExistente = carrito.products.find(product => product.product === productoId);
+    const productoEnCarrito = carrito.products.find(producto => producto.product === pid);
 
-    if (productoExistente) {
-        productoExistente.quantity += 1;
+    if (productoEnCarrito) {
+        productoEnCarrito.quantity += 1;
     } else {
-        carrito.products.push({ product: productoId, quantity: 1 });
+        carrito.products.push({ product: pid, quantity: 1 });
     }
 
-    writeCarritosToFile(carritos);
+    saveCarritos();
     return carrito;
 };
 
-export { carritos, crearCarrito, obtenerCarritoPorId, agregarProductoACarrito };
+loadCarritos();
 
+export { carritos, crearCarrito, obtenerCarritoPorId, agregarProductoACarrito };
