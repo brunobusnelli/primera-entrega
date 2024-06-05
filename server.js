@@ -1,37 +1,35 @@
-import express from "express";
-import { productos, generarId } from "./productos.js";
+import express from 'express';
+import { productos, generarId, agregarProducto, actualizarProducto, eliminarProducto } from './productos.js';
+import { carritos, crearCarrito, obtenerCarritoPorId, agregarProductoACarrito } from './carts.js';
 
 const server = express();
 const PORT = 8080;
-const HOST = "localhost";
+const HOST = 'localhost';
 
 server.use(express.urlencoded({ extended: true }));
 server.use(express.json());
 
-// Obtener Productos
+// Rutas para productos
 server.get('/api/productos', (req, res) => {
-    res.status(200).send({ status: "success", payload: productos });
+    res.status(200).send({ status: 'success', payload: productos });
 });
 
-// Obtener Productos por ID
 server.get('/api/productos/:pid', (req, res) => {
     const { pid } = req.params;
     const producto = productos.find((producto) => producto.id === Number(pid));
 
     if (!producto) {
-        return res.status(404).send({ status: "error", message: "Producto no encontrado" });
+        return res.status(404).send({ status: 'error', message: 'Producto no encontrado' });
     }
 
-    return res.status(200).send({ status: "success", payload: producto });
+    return res.status(200).send({ status: 'success', payload: producto });
 });
 
-
-// Agregar Producto
 server.post('/api/productos', (req, res) => {
     const { title, description, code, price, status, stock, category, thumbnails } = req.body;
 
     if (!title || !description || !code || !price || status === undefined || !stock || !category || !thumbnails) {
-        return res.status(400).send({ status: "error", message: "Datos incompletos" });
+        return res.status(400).send({ status: 'error', message: 'Datos incompletos' });
     }
 
     const newProduct = {
@@ -46,48 +44,74 @@ server.post('/api/productos', (req, res) => {
         thumbnails
     };
 
-    productos.push(newProduct);
+    agregarProducto(newProduct);
 
-    return res.status(201).send({ status: "success", message: "El producto se ha creado", payload: newProduct });
+    return res.status(201).send({ status: 'success', message: 'El producto se ha creado', payload: newProduct });
 });
 
-// Actualizar Productos
 server.put('/api/productos/:pid', (req, res) => {
     const { pid } = req.params;
     const { title, description, code, price, status, stock, category, thumbnails } = req.body;
-    const indice = productos.findIndex((producto) => producto.id === Number(pid));
 
-    if (indice < 0) {
-        return res.status(404).send({ status: "error", message: "Producto no encontrado" });
+    const producto = productos.find(producto => producto.id === Number(pid));
+
+    if (!producto) {
+        return res.status(404).send({ status: 'error', message: 'Producto no encontrado' });
     }
 
-    if (!title || !description || !code || !price || status === undefined || !stock || !category || !thumbnails) {
-        return res.status(400).send({ status: "error", message: "Datos incompletos" });
-    }
+    actualizarProducto(Number(pid), { title, description, code, price, status, stock, category, thumbnails });
 
-    productos[indice] = { id: Number(pid), title, description, code, price, status, stock, category, thumbnails };
-
-    return res.status(200).send({ status: "success", message: "El producto se ha modificado", payload: productos[indice] });
+    return res.status(200).send({ status: 'success', message: 'El producto se ha modificado' });
 });
 
-// Eliminar Productos
 server.delete('/api/productos/:pid', (req, res) => {
     const { pid } = req.params;
-    const indice = productos.findIndex((producto) => producto.id === Number(pid));
 
-    if (indice < 0) {
-        return res.status(404).send({ status: "error", message: "Producto no encontrado" });
+    const producto = productos.find(producto => producto.id === Number(pid));
+
+    if (!producto) {
+        return res.status(404).send({ status: 'error', message: 'Producto no encontrado' });
     }
 
-    productos.splice(indice, 1);
+    eliminarProducto(Number(pid));
 
-    return res.status(200).send({ status: "success", message: "El producto se ha eliminado" });
+    return res.status(200).send({ status: 'success', message: 'El producto se ha eliminado' });
 });
 
-server.use("*", (req, res) => {
-    return res.status(404).send("<h1>Error 404</h1><p>Recurso no encontrado</p>");
+// Rutas para carritos
+server.post('/api/carts', (req, res) => {
+    const nuevoCarrito = crearCarrito();
+    return res.status(201).send({ status: 'success', message: 'Carrito creado', payload: nuevoCarrito });
 });
 
+server.get('/api/carts/:cid', (req, res) => {
+    const { cid } = req.params;
+    const carrito = obtenerCarritoPorId(cid);
+
+    if (!carrito) {
+        return res.status(404).send({ status: 'error', message: 'Carrito no encontrado' });
+    }
+
+    return res.status(200).send({ status: 'success', payload: carrito.products });
+});
+
+server.post('/api/carts/:cid/product/:pid', (req, res) => {
+    const { cid, pid } = req.params;
+    const carritoActualizado = agregarProductoACarrito(cid, Number(pid));
+
+    if (!carritoActualizado) {
+        return res.status(404).send({ status: 'error', message: 'Carrito no encontrado' });
+    }
+
+    return res.status(200).send({ status: 'success', message: 'Producto agregado al carrito', payload: carritoActualizado });
+});
+
+// Método que responde a las URL inexistentes
+server.use('*', (req, res) => {
+    return res.status(404).send('<h1>Error 404</h1><p>Recurso no encontrado</p>');
+});
+
+// Método oyente de solicitudes
 server.listen(PORT, () => {
     console.log(`Ejecutándose en http://${HOST}:${PORT}`);
 });
