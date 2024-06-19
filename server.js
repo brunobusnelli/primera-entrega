@@ -1,117 +1,64 @@
 import express from 'express';
-import { productos, generarId, agregarProducto, actualizarProducto, eliminarProducto } from './productos.js';
-import { crearCarrito, obtenerCarritoPorId, agregarProductoACarrito } from './carts.js';
+import http from 'http';
+import { Server } from 'socket.io';
+import exphbs from 'express-handlebars';
+import path from 'path';
+import { productos, generarId, agregarProducto, eliminarProducto } from './productos.js';
 
-const server = express();
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
 const PORT = 8080;
 const HOST = 'localhost';
 
-server.use(express.urlencoded({ extended: true }));
-server.use(express.json());
+// Configuración de Handlebars
+app.engine('.hbs', exphbs({ extname: '.hbs' }));
+app.set('view engine', '.hbs');
+app.set('views', path.join(__dirname, 'views'));
 
-// Rutas para productos
-server.get('/api/productos', (req, res) => {
-    res.status(200).send({ status: 'success', payload: productos });
+// Middleware para manejar archivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Middleware para parsear body de peticiones
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// Rutas
+app.get('/products', (req, res) => {
+    res.render('index', { productos });
 });
 
-server.get('/api/productos/:pid', (req, res) => {
-    const { pid } = req.params;
-    const producto = productos.find((producto) => producto.id === Number(pid));
-
-    if (!producto) {
-        return res.status(404).send({ status: 'error', message: 'Producto no encontrado' });
-    }
-
-    return res.status(200).send({ status: 'success', payload: producto });
+app.get('/realtimeproducts', (req, res) => {
+    res.render('realTimeProductos', { productos });
 });
 
-server.post('/api/productos', (req, res) => {
-    const { title, description, code, price, status, stock, category, thumbnails } = req.body;
+// WebSocket para manejar eventos en tiempo real
+io.on('connection', (socket) => {
+    console.log('Nuevo cliente conectado');
 
-    if (!title || !description || !code || !price || status === undefined || !stock || !category || !thumbnails) {
-        return res.status(400).send({ status: 'error', message: 'Datos incompletos' });
-    }
+    socket.on('productoCreado', (producto) => {
+        producto.id = generarId();
+        agregarProducto(producto);
+        io.emit('productoCreado', producto);
+    });
 
-    const newProduct = {
-        id: generarId(),
-        title,
-        description,
-        code,
-        price,
-        status,
-        stock,
-        category,
-        thumbnails
-    };
+    socket.on('productoEliminado', (idProducto) => {
+        eliminarProducto(idProducto);
+        io.emit('productoEliminado', idProducto);
+    });
 
-    agregarProducto(newProduct);
-
-    return res.status(201).send({ status: 'success', message: 'El producto se ha creado', payload: newProduct });
+    socket.on('disconnect', () => {
+        console.log('Cliente desconectado');
+    });
 });
 
-server.put('/api/productos/:pid', (req, res) => {
-    const { pid } = req.params;
-    const { title, description, code, price, status, stock, category, thumbnails } = req.body;
-
-    const producto = productos.find(producto => producto.id === Number(pid));
-
-    if (!producto) {
-        return res.status(404).send({ status: 'error', message: 'Producto no encontrado' });
-    }
-
-    actualizarProducto(Number(pid), { title, description, code, price, status, stock, category, thumbnails });
-
-    return res.status(200).send({ status: 'success', message: 'El producto se ha modificado' });
+// Manejo de rutas no encontradas
+app.use('*', (req, res) => {
+    res.status(404).send('<h1>Error 404</h1><p>Recurso no encontrado</p>');
 });
 
-server.delete('/api/productos/:pid', (req, res) => {
-    const { pid } = req.params;
-
-    const producto = productos.find(producto => producto.id === Number(pid));
-
-    if (!producto) {
-        return res.status(404).send({ status: 'error', message: 'Producto no encontrado' });
-    }
-
-    eliminarProducto(Number(pid));
-
-    return res.status(200).send({ status: 'success', message: 'El producto se ha eliminado' });
-});
-
-// Rutas para carritos
-server.post('/api/carts', (req, res) => {
-    const nuevoCarrito = crearCarrito();
-    return res.status(201).send({ status: 'success', message: 'Carrito creado', payload: nuevoCarrito });
-});
-
-server.get('/api/carts/:cid', (req, res) => {
-    const { cid } = req.params;
-    const carrito = obtenerCarritoPorId(cid);
-
-    if (!carrito) {
-        return res.status(404).send({ status: 'error', message: 'Carrito no encontrado' });
-    }
-
-    return res.status(200).send({ status: 'success', payload: carrito.products });
-});
-
-server.post('/api/carts/:cid/product/:pid', (req, res) => {
-    const { cid, pid } = req.params;
-    const carritoActualizado = agregarProductoACarrito(cid, Number(pid));
-
-    if (!carritoActualizado) {
-        return res.status(404).send({ status: 'error', message: 'Carrito no encontrado' });
-    }
-
-    return res.status(200).send({ status: 'success', message: 'Producto agregado al carrito', payload: carritoActualizado });
-});
-
-// Método que responde a las URL inexistentes
-server.use('*', (req, res) => {
-    return res.status(404).send('<h1>Error 404</h1><p>Recurso no encontrado</p>');
-});
-
-// Método oyente de solicitudes
+// Iniciar servidor
 server.listen(PORT, () => {
-    console.log(`Ejecutándose en http://${HOST}:${PORT}`);
+    console.log(`Servidor escuchando en http://${HOST}:${PORT}`);
 });

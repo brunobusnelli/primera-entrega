@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos en Tiempo Real</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <h1>Productos en Tiempo Real</h1>
+    <ul id="productos-lista">
+        {{#each productos}}
+            <li>{{this.title}} - {{this.price}} <button onclick="eliminarProducto('{{this.id}}')">Eliminar</button></li>
+        {{/each}}
+    </ul>
+    <form id="formulario-producto">
+        <input type="text" name="title" placeholder="Título" required>
+        <input type="number" name="price" placeholder="Precio" required>
+        <button type="submit">Agregar Producto</button>
+    </form>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // Escuchar evento de creación de producto
+        socket.on('productoCreado', (producto) => {
+            const listaProductos = document.getElementById('productos-lista');
+            const nuevoProducto = document.createElement('li');
+            nuevoProducto.textContent = `${producto.title} - ${producto.price} `;
+            const botonEliminar = document.createElement('button');
+            botonEliminar.textContent = 'Eliminar';
+            botonEliminar.onclick = () => {
+                eliminarProducto(producto.id);
+            };
+            nuevoProducto.appendChild(botonEliminar);
+            listaProductos.appendChild(nuevoProducto);
+        });
+
+        // Escuchar evento de eliminación de producto
+        socket.on('productoEliminado', (idProducto) => {
+            const listaProductos = document.getElementById('productos-lista');
+            const productoAEliminar = document.getElementById(idProducto);
+            if (productoAEliminar) {
+                listaProductos.removeChild(productoAEliminar);
+            }
+        });
+
+        // Función para eliminar un producto
+        function eliminarProducto(idProducto) {
+            socket.emit('productoEliminado', idProducto);
+        }
+
+        // Manejar envío del formulario
+        const formulario = document.getElementById('formulario-producto');
+        formulario.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const formData = new FormData(formulario);
+            const nuevoProducto = {
+                title: formData.get('title'),
+                price: formData.get('price')
+            };
+            socket.emit('productoCreado', nuevoProducto);
+            formulario.reset();
+        });
+    </script>
+</body>
+</html>
